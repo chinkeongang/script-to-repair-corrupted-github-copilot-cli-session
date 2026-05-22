@@ -1,0 +1,36 @@
+{
+  "name": "session-repair",
+  "version": "1.0.0",
+  "description": "DOSShell-style TUI tool for browsing, inspecting, and repairing GitHub Copilot CLI session databases",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx src/index.tsx",
+    "build": "tsup src/index.tsx --format esm --dts --clean",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "copilot",
+    "session",
+    "repair",
+    "tui",
+    "debug"
+  ],
+  "license": "UNLICENSED",
+  "private": true,
+  "dependencies": {
+    "commander": "^14.0.3",
+    "ink": "^5.2.1",
+    "react": "^18.3.1",
+    "better-sqlite3": "^11.9.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.2.14",
+    "@types/better-sqlite3": "^7.6.13",
+    "tsup": "^8.5.1",
+    "tsx": "^4.21.0",
+    "typescript": "^5.7.0"
+  }
+}
