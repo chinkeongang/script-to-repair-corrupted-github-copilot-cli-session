@@ -8,6 +8,7 @@ import { parseEventsSync, getEventsStats, countErrors, hasShutdown, type ParsedE
 import { parseCheckpoints, type CheckpointInfo } from "./parsers/checkpoints.js";
 import { parseDatabaseSync, type TableInfo } from "./parsers/database.js";
 import { truncateEvents } from "./repair/truncate.js";
+import { replaceEventLine, type PreparedImport, type ExchangeMode } from "./repair/exchange.js";
 import { type EventCategory, ALL_CATEGORIES } from "./utils/event-classify.js";
 
 import { Header } from "./components/Header.js";
@@ -21,6 +22,7 @@ import { CheckpointList } from "./components/CheckpointList.js";
 import { DatabaseBrowser } from "./components/DatabaseBrowser.js";
 import { MetadataEditor } from "./components/MetadataEditor.js";
 import { RepairPanel } from "./components/RepairPanel.js";
+import { ImportConfirm } from "./components/ImportConfirm.js";
 
 interface AppProps {
   sessionDir: string;
@@ -54,7 +56,9 @@ export function App({ sessionDir, initialSessionId }: AppProps) {
     | null
     | { type: "event-detail"; event: ParsedEvent }
     | { type: "truncate-confirm" }
+    | { type: "import-confirm"; event: ParsedEvent; sourceFile: string; mode: ExchangeMode; newRaw: string }
   >(null);
+  const [importError, setImportError] = useState<string | null>(null);
 
   // Checkpoint / DB state
   const [checkpoints, setCheckpoints] = useState<CheckpointInfo[]>([]);
@@ -245,6 +249,16 @@ export function App({ sessionDir, initialSessionId }: AppProps) {
     setModal({ type: "truncate-confirm" });
   }, []);
 
+  // Move from the detail view into the import confirmation for the same event.
+  const handleImport = useCallback((prepared: PreparedImport) => {
+    setImportError(null);
+    setModal((m) =>
+      m?.type === "event-detail"
+        ? { type: "import-confirm", event: m.event, ...prepared }
+        : m
+    );
+  }, []);
+
   const handleToggleCategory = useCallback((cat: EventCategory) => {
     setCategoryFilter((prev) => {
       const next = new Set(prev);
@@ -270,6 +284,38 @@ export function App({ sessionDir, initialSessionId }: AppProps) {
           event={modal.event}
           maxHeight={contentHeight}
           onClose={() => setModal(null)}
+          onImport={handleImport}
+        />
+      </Box>
+    );
+  }
+
+  // Modal overlay: Import Confirm
+  if (modal?.type === "import-confirm") {
+    return (
+      <Box flexDirection="column" height={termHeight}>
+        <Header title="Session Repair" sessionName={selectedSession?.workspace.name} />
+        <ImportConfirm
+          event={modal.event}
+          sourceFile={modal.sourceFile}
+          mode={modal.mode}
+          newRaw={modal.newRaw}
+          error={importError}
+          onConfirm={() => {
+            if (!selectedSession) return;
+            const result = replaceEventLine(selectedSession.dir, modal.event.lineNumber, modal.newRaw);
+            if (result.success) {
+              setEvents(parseEventsSync(selectedSession.dir));
+              setModal(null);
+              setImportError(null);
+            } else {
+              setImportError(result.error ?? "Import failed");
+            }
+          }}
+          onCancel={() => {
+            setModal(null);
+            setImportError(null);
+          }}
         />
       </Box>
     );
